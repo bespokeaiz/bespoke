@@ -9,16 +9,36 @@ jobs:
   backend:
     name: Backend (FastAPI smoke)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
     steps:
       - uses: actions/checkout@v4
-      - name: Smoke
-        run: echo "Backend OK"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Import check
+        run: python -c "import fastapi, pydantic; print('backend ok')"
+      - name: Endpoint smoke
+        run: |
+          python - <<'PY'
+          import importlib
+          m = importlib.import_module("app.main")
+          assert m.health()["ok"] is True
+          print("health ok")
+          PY
 
   frontend:
     name: Frontend (Next.js build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
-      - name: Build stub
-        run: echo "Frontend OK"
-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci || npm i
+      - run: npm run build
