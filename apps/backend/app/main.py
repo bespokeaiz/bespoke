@@ -1,42 +1,31 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import List
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from .db import engine, Base, get_db
+from . import schemas, models
+from .crud import create_listing, get_listings, get_listing
 
 app = FastAPI(title="Artist Market API")
 
-# Простая "память" процесса. На проде тут будет БД.
-DB: List[dict] = []
-ID = 1
-
-class ListingIn(BaseModel):
-    title: str = Field(..., min_length=3, max_length=120)
-    description: str = Field(..., min_length=3, max_length=1000)
-    price_from: float = Field(..., ge=0)
-    city: str
-    category: str
-
-class Listing(ListingIn):
-    id: int
+# Создаём таблицы (в SQLite in-memory это нужно на каждый старт).
+Base.metadata.create_all(bind=engine)
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
-@app.get("/listings", response_model=List[Listing])
-def list_listings():
-    return DB
+@app.get("/listings", response_model=list[schemas.Listing])
+def list_listings(db: Session = Depends(get_db)):
+    return get_listings(db)
 
-@app.post("/listings", response_model=Listing, status_code=201)
-def create_listing(payload: ListingIn):
-    global ID
-    item = {"id": ID, **payload.model_dump()}
-    DB.append(item)
-    ID += 1
+@app.post("/listings", response_model=schemas.Listing, status_code=201)
+def post_listing(payload: schemas.ListingIn, db: Session = Depends(get_db)):
+    return create_listing(db, payload)
+
+@app.get("/listings/{listing_id}", response_model=schemas.Listing)
+def read_listing(listing_id: int, db: Session = Depends(get_db)):
+    item = get_listing(db, listing_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
     return item
 
-@app.get("/listings/{listing_id}", response_model=Listing)
-def get_listing(listing_id: int):
-    for item in DB:
-        if item["id"] == listing_id:
-            return item
-    raise HTTPException(status_code=404, detail="Not found")
