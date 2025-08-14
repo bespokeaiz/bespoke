@@ -2,8 +2,7 @@
   "name": "artist-frontend",
   "private": true,
   "scripts": {
-    "build": "echo Building frontend && node -e \"console.log('ok')\"",
+    "build": "node -e \"console.log('frontend build ok')\"",
     "lint": "node -e \"console.log('lint ok')\""
-  },
-  "devDependencies": {}
+  }
 }
