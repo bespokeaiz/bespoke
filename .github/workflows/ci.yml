@@ -28,6 +28,19 @@ jobs:
           assert m.health()["ok"] is True
           print("health ok")
           PY
+      - name: Create listing smoke
+        run: |
+          python - <<'PY'
+          from app.main import post_listing, schemas, list_listings
+          from app.db import SessionLocal
+          db = SessionLocal()
+          post_listing(schemas.ListingIn(
+              title="Test", description="Ok", price_from=10, city="Tashkent", category="music"
+          ), db)
+          assert len(list_listings(db)) >= 1
+          print("create ok")
+          PY
+
 
   frontend:
     name: Frontend (Next.js build)
