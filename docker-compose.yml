@@ -12,14 +12,22 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
+<<<<<<< HEAD
       test: ["CMD-SHELL", "pg_isready -U artist -d artistdb"]
       interval: 5s
       timeout: 5s
       retries: 20
+=======
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+>>>>>>> 54f8d4d (compose: add db healthcheck and depends_on condition; remove version key)
 
   backend:
     build: ./apps/backend
     container_name: artist_backend
+<<<<<<< HEAD
     working_dir: /app
     # важно: alembic перед uvicorn и ожидание готовности БД
     command: >
@@ -27,6 +35,10 @@ services:
         alembic -c /app/alembic.ini upgrade head &&
         exec uvicorn app.main:app --host 0.0.0.0 --port 8000
       "
+=======
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+>>>>>>> 54f8d4d (compose: add db healthcheck and depends_on condition; remove version key)
     volumes:
       - ./apps/backend:/app
     ports:
