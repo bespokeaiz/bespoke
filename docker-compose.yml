@@ -1,3 +1,4 @@
+cat > docker-compose.yml <<'YML'
 services:
   db:
     image: postgres:15
@@ -29,7 +30,6 @@ services:
     container_name: artist_backend
 <<<<<<< HEAD
     working_dir: /app
-    # важно: alembic перед uvicorn и ожидание готовности БД
     command: >
       sh -c "
         alembic -c /app/alembic.ini upgrade head &&
@@ -52,3 +52,5 @@ services:
 
 volumes:
   postgres_data:
+YML
+
