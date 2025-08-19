@@ -1,45 +1,43 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import OperationalError
-import time
+cat > docker-compose.yml <<'YML'
+services:
+  db:
+    image: postgres:15
+    container_name: artist_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: artist
+      POSTGRES_PASSWORD: artistpwd
+      POSTGRES_DB: artistdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artist -d artistdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-from .db import get_db
-from . import schemas
-from .crud import create_listing, get_listings, get_listing
+  backend:
+    build: ./apps/backend
+    container_name: artist_backend
+    working_dir: /app
+    command: >
+      sh -c "
+        alembic -c /app/alembic.ini upgrade head &&
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+    volumes:
+      - ./apps/backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://artist:artistpwd@db:5432/artistdb
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      db:
+        condition: service_healthy
 
-app = FastAPI(title="Artist Market API")
-
-def wait_for_db(max_retries: int = 30, delay: float = 1.0):
-    """Ждём, пока Postgres примет коннект."""
-    from .db import engine  # локальный импорт, чтобы не подцеплять раньше времени
-    for _ in range(max_retries):
-        try:
-            with engine.connect() as _:
-                return
-        except OperationalError:
-            time.sleep(delay)
-    raise RuntimeError("Database is not ready after waiting")
-
-@app.on_event("startup")
-def on_startup():
-    # ждём готовности БД; таблицы создаёт Alembic
-    wait_for_db()
-
-@app.get("/health")
-def health():
-    return {"ok": True}
-
-@app.get("/listings", response_model=list[schemas.Listing])
-def list_listings(db: Session = Depends(get_db)):
-    return get_listings(db)
-
-@app.post("/listings", response_model=schemas.Listing, status_code=201)
-def post_listing(payload: schemas.ListingIn, db: Session = Depends(get_db)):
-    return create_listing(db, payload)
-
-@app.get("/listings/{listing_id}", response_model=schemas.Listing)
-def read_listing(listing_id: int, db: Session = Depends(get_db)):
-    item = get_listing(db, listing_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Not found")
-    return item
+volumes:
+  postgres_data:
+YML
